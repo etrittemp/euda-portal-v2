@@ -116,12 +116,12 @@ export const questionnaireAPI = {
 
   create: async (data: any) => {
     const response = await api.post('/api/questionnaires', data);
-    return response.data;
+    return response.data.questionnaire; // Return just the questionnaire object
   },
 
   update: async (id: string, data: any) => {
     const response = await api.put(`/api/questionnaires/${id}`, data);
-    return response.data;
+    return response.data.questionnaire || response.data; // Handle both response formats
   },
 
   delete: async (id: string, force: boolean = false) => {
