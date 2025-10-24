@@ -94,6 +94,62 @@ router.get('/:id', authenticateToken, requireAdmin, async (req, res) => {
 });
 
 // ============================================
+// VERIFY QUESTIONNAIRE CODE
+// ============================================
+router.get('/verify/:code', async (req, res) => {
+  try {
+    const { code } = req.params;
+
+    const { data: questionnaire, error } = await supabase
+      .from('questionnaires')
+      .select('id, password, status')
+      .eq('id', code)
+      .eq('status', 'active')
+      .single();
+
+    if (error || !questionnaire) {
+      return res.json({ exists: false });
+    }
+
+    res.json({
+      exists: true,
+      requiresPassword: !!questionnaire.password
+    });
+  } catch (error) {
+    console.error('Verify questionnaire error:', error);
+    res.status(500).json({ error: 'Failed to verify questionnaire' });
+  }
+});
+
+// ============================================
+// VERIFY QUESTIONNAIRE PASSWORD
+// ============================================
+router.post('/verify-password', async (req, res) => {
+  try {
+    const { questionnaireId, password } = req.body;
+
+    const { data: questionnaire, error } = await supabase
+      .from('questionnaires')
+      .select('password')
+      .eq('id', questionnaireId)
+      .eq('status', 'active')
+      .single();
+
+    if (error || !questionnaire) {
+      return res.status(404).json({ error: 'Questionnaire not found' });
+    }
+
+    // Simple password comparison (not hashed for simplicity)
+    const valid = questionnaire.password === password;
+
+    res.json({ valid });
+  } catch (error) {
+    console.error('Verify password error:', error);
+    res.status(500).json({ error: 'Failed to verify password' });
+  }
+});
+
+// ============================================
 // GET PUBLIC QUESTIONNAIRE (for respondents)
 // ============================================
 router.get('/public/:id', async (req, res) => {
@@ -157,22 +213,29 @@ router.get('/public/:id', async (req, res) => {
 // ============================================
 router.post('/', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { title, description, status = 'draft', sections = [] } = req.body;
+    const { title, description, status = 'draft', password, sections = [] } = req.body;
 
     if (!title) {
       return res.status(400).json({ error: 'Title is required' });
     }
 
     // Create questionnaire
+    const questionnaireData = {
+      title,
+      description,
+      status,
+      created_by: req.user.id,
+      published_at: status === 'active' ? new Date().toISOString() : null
+    };
+
+    // Only include password if it's provided and not empty
+    if (password && password.trim()) {
+      questionnaireData.password = password.trim();
+    }
+
     const { data: questionnaire, error: qError } = await supabase
       .from('questionnaires')
-      .insert([{
-        title,
-        description,
-        status,
-        created_by: req.user.id,
-        published_at: status === 'active' ? new Date().toISOString() : null
-      }])
+      .insert([questionnaireData])
       .select()
       .single();
 
@@ -245,11 +308,16 @@ router.post('/', authenticateToken, requireAdmin, async (req, res) => {
 router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, status, sections } = req.body;
+    const { title, description, status, password, sections } = req.body;
 
     const updates = {};
     if (title !== undefined) updates.title = title;
     if (description !== undefined) updates.description = description;
+    if (password !== undefined) {
+      // If password is empty string or null, set to null (remove password protection)
+      // Otherwise, set the password value
+      updates.password = password && password.trim() ? password.trim() : null;
+    }
     if (status !== undefined) {
       updates.status = status;
       if (status === 'active') {

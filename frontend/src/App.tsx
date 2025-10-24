@@ -10,7 +10,7 @@ import ProtectedRoute from './ProtectedRoute';
 // Lazy load components for better performance
 const LoginPage = lazy(() => import('./LoginPage'));
 const AdminDashboard = lazy(() => import('./AdminDashboard'));
-const QuestionnairePage = lazy(() => import('./QuestionnairePage'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 const QuestionnaireManagement = lazy(() => import('./QuestionnaireManagement'));
 const DynamicQuestionnaire = lazy(() => import('./DynamicQuestionnaire'));
 const QuestionnaireBuilder = lazy(() => import('./QuestionnaireBuilder'));
@@ -24,8 +24,8 @@ function App() {
             <Toaster position="top-right" />
             <Suspense fallback={<LoadingSpinner fullScreen text="Loading..." size="lg" />}>
               <Routes>
+                <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
-                <Route path="/questionnaire" element={<QuestionnairePage />} />
                 <Route path="/questionnaire/:id" element={<DynamicQuestionnaire />} />
                 <Route
                   path="/dashboard"
@@ -59,7 +59,6 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
-                <Route path="/" element={<Navigate to="/questionnaire" replace />} />
               </Routes>
             </Suspense>
           </AuthProvider>

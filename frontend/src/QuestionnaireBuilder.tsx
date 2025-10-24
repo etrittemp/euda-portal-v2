@@ -54,6 +54,7 @@ interface QuestionnaireData {
   title: string;
   description: string;
   status: 'draft' | 'active' | 'archived';
+  password?: string;
   sections: Section[];
 }
 
@@ -128,6 +129,8 @@ const QuestionnaireBuilder: React.FC = () => {
       untitledQuestionnaire: 'Untitled Questionnaire',
       questionnaireTitle: 'Questionnaire Title',
       questionnaireDescription: 'Questionnaire description (optional)',
+      password: 'Password (Optional)',
+      passwordPlaceholder: 'Leave empty for no password protection',
       enterQuestion: 'Enter question',
       addHelperText: 'Add helper text or instructions',
       option: 'Option',
@@ -164,6 +167,8 @@ const QuestionnaireBuilder: React.FC = () => {
       untitledQuestionnaire: 'Pyetësor pa Titull',
       questionnaireTitle: 'Titulli i Pyetësorit',
       questionnaireDescription: 'Përshkrimi i pyetësorit (opsional)',
+      password: 'Fjalëkalimi (Opsional)',
+      passwordPlaceholder: 'Lëre bosh për të mos pasur mbrojtje me fjalëkalim',
       enterQuestion: 'Vendos pyetjen',
       addHelperText: 'Shto tekst ndihmës ose udhëzime',
       option: 'Opsioni',
@@ -200,6 +205,8 @@ const QuestionnaireBuilder: React.FC = () => {
       untitledQuestionnaire: 'Упитник без наслова',
       questionnaireTitle: 'Наслов упитника',
       questionnaireDescription: 'Опис упитника (опционално)',
+      password: 'Лозинка (Опционално)',
+      passwordPlaceholder: 'Оставите празно за приступ без лозинке',
       enterQuestion: 'Унесите питање',
       addHelperText: 'Додајте текст помоћи или упутства',
       option: 'Опција',
@@ -793,8 +800,20 @@ const QuestionnaireBuilder: React.FC = () => {
             onChange={(e) => setQuestionnaire(prev => ({ ...prev, description: e.target.value }))}
             placeholder={tr('questionnaireDescription')}
             rows={2}
-            className="w-full text-gray-600 border-none focus:outline-none focus:ring-0 px-0 resize-none"
+            className="w-full text-gray-600 border-none focus:outline-none focus:ring-0 px-0 resize-none mb-4"
           />
+          <div className="border-t border-gray-200 pt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {tr('password')}
+            </label>
+            <input
+              type="text"
+              value={questionnaire.password || ''}
+              onChange={(e) => setQuestionnaire(prev => ({ ...prev, password: e.target.value }))}
+              placeholder={tr('passwordPlaceholder')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition"
+            />
+          </div>
         </div>
 
         {/* Section Tabs */}
