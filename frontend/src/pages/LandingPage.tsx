@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, ArrowRight, AlertCircle, Lock } from 'lucide-react';
+import { FileText, ArrowRight, AlertCircle, Lock, LogIn } from 'lucide-react';
 import axios from 'axios';
 import { useTranslation } from '../hooks/useTranslation';
 import LanguageSelector from '../components/LanguageSelector';
@@ -167,7 +167,16 @@ const LandingPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-4 relative">
+      {/* Login Button - Top Right */}
+      <button
+        onClick={() => navigate('/login')}
+        className="absolute top-4 right-4 flex items-center gap-2 px-4 py-2 bg-white text-purple-600 rounded-lg shadow-md hover:shadow-lg hover:bg-purple-50 transition-all"
+      >
+        <LogIn className="w-4 h-4" />
+        <span className="font-medium">Admin Login</span>
+      </button>
+
       <div className={`bg-white rounded-2xl shadow-xl w-full max-w-md p-8 ${shake ? 'animate-shake' : ''}`}>
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mb-4">
