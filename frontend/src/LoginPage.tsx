@@ -21,7 +21,7 @@ const LoginPage: React.FC = () => {
 
     try {
       await login(email, password);
-      navigate('/dashboard');
+      navigate('/questionnaires');
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.response?.data?.error || t('invalidCredentials'));

@@ -32,6 +32,18 @@ export interface Translations {
   invalidCredentials: string;
   adminLogin: string;
 
+  // Landing Page
+  questionnairePortal: string;
+  enterCodeToBegin: string;
+  questionnaireCode: string;
+  enterYourCode: string;
+  continue: string;
+  passwordRequired: string;
+  questionnairePasswordProtected: string;
+  enterQuestionnairePassword: string;
+  questionnaireNotFound: string;
+  incorrectPassword: string;
+
   // Dashboard
   dashboard: string;
   adminDashboard: string;
@@ -213,6 +225,18 @@ export const translations: Record<'en' | 'sq' | 'sr', Translations> = {
     invalidCredentials: 'Invalid email or password',
     adminLogin: 'Admin Login',
 
+    // Landing Page
+    questionnairePortal: 'Questionnaire Portal',
+    enterCodeToBegin: 'Enter your questionnaire code to begin',
+    questionnaireCode: 'Questionnaire Code',
+    enterYourCode: 'Enter your code',
+    continue: 'Continue',
+    passwordRequired: 'Password Required',
+    questionnairePasswordProtected: 'This questionnaire is password protected',
+    enterQuestionnairePassword: 'Enter questionnaire password',
+    questionnaireNotFound: 'Questionnaire not found. Please check the code and try again.',
+    incorrectPassword: 'Incorrect password. Please try again.',
+
     // Dashboard
     dashboard: 'Dashboard',
     adminDashboard: 'Admin Dashboard',
@@ -393,6 +417,18 @@ export const translations: Record<'en' | 'sq' | 'sr', Translations> = {
     invalidCredentials: 'Email ose fjalëkalim i pavlefshëm',
     adminLogin: 'Hyrje e Administratorit',
 
+    // Landing Page
+    questionnairePortal: 'Portali i Pyetësorit',
+    enterCodeToBegin: 'Vendosni kodin e pyetësorit tuaj për të filluar',
+    questionnaireCode: 'Kodi i Pyetësorit',
+    enterYourCode: 'Vendosni kodin tuaj',
+    continue: 'Vazhdo',
+    passwordRequired: 'Kërkohet Fjalëkalimi',
+    questionnairePasswordProtected: 'Ky pyetësor është i mbrojtur me fjalëkalim',
+    enterQuestionnairePassword: 'Vendosni fjalëkalimin e pyetësorit',
+    questionnaireNotFound: 'Pyetësori nuk u gjet. Ju lutem kontrolloni kodin dhe provoni përsëri.',
+    incorrectPassword: 'Fjalëkalim i pasaktë. Ju lutem provoni përsëri.',
+
     // Dashboard
     dashboard: 'Paneli',
     adminDashboard: 'Paneli i Administratorit',
@@ -572,6 +608,18 @@ export const translations: Record<'en' | 'sq' | 'sr', Translations> = {
     signingIn: 'Пријављивање...',
     invalidCredentials: 'Неважећа емаил адреса или лозинка',
     adminLogin: 'Администраторска пријава',
+
+    // Landing Page
+    questionnairePortal: 'Портал упитника',
+    enterCodeToBegin: 'Унесите код упитника да бисте почели',
+    questionnaireCode: 'Код упитника',
+    enterYourCode: 'Унесите ваш код',
+    continue: 'Настави',
+    passwordRequired: 'Потребна је лозинка',
+    questionnairePasswordProtected: 'Овај упитник је заштићен лозинком',
+    enterQuestionnairePassword: 'Унесите лозинку упитника',
+    questionnaireNotFound: 'Упитник није пронађен. Проверите код и покушајте поново.',
+    incorrectPassword: 'Нетачна лозинка. Молимо покушајте поново.',
 
     // Dashboard
     dashboard: 'Контролна табла',

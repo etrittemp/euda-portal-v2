@@ -34,7 +34,7 @@ const LandingPage: React.FC = () => {
       const { exists, requiresPassword } = response.data;
 
       if (!exists) {
-        setError('Questionnaire not found. Please check the code and try again.');
+        setError(t('questionnaireNotFound'));
         triggerShake();
         setLoading(false);
         return;
@@ -50,7 +50,7 @@ const LandingPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Code verification error:', err);
-      setError('Questionnaire not found. Please check the code and try again.');
+      setError(t('questionnaireNotFound'));
       triggerShake();
       setLoading(false);
     }
@@ -74,13 +74,13 @@ const LandingPage: React.FC = () => {
           state: { passwordVerified: true }
         });
       } else {
-        setError('Incorrect password. Please try again.');
+        setError(t('incorrectPassword'));
         triggerShake();
         setLoading(false);
       }
     } catch (err: any) {
       console.error('Password verification error:', err);
-      setError('Incorrect password. Please try again.');
+      setError(t('incorrectPassword'));
       triggerShake();
       setLoading(false);
     }
@@ -101,8 +101,8 @@ const LandingPage: React.FC = () => {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mb-4">
               <Lock className="w-8 h-8 text-purple-600" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-800">Password Required</h1>
-            <p className="text-gray-600 mt-2">This questionnaire is password protected</p>
+            <h1 className="text-3xl font-bold text-gray-800">{t('passwordRequired')}</h1>
+            <p className="text-gray-600 mt-2">{t('questionnairePasswordProtected')}</p>
           </div>
 
           {error && (
@@ -115,7 +115,7 @@ const LandingPage: React.FC = () => {
           <form onSubmit={handlePasswordSubmit} className="space-y-6">
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Password
+                {t('password')}
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -125,7 +125,7 @@ const LandingPage: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition"
-                  placeholder="Enter questionnaire password"
+                  placeholder={t('enterQuestionnairePassword')}
                   required
                   autoFocus
                 />
@@ -138,7 +138,7 @@ const LandingPage: React.FC = () => {
                 onClick={handleBack}
                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-lg transition-colors"
               >
-                Back
+                {t('back')}
               </button>
               <button
                 type="submit"
@@ -154,7 +154,7 @@ const LandingPage: React.FC = () => {
                   </span>
                 ) : (
                   <>
-                    Continue
+                    {t('continue')}
                     <ArrowRight className="w-5 h-5" />
                   </>
                 )}
@@ -174,7 +174,7 @@ const LandingPage: React.FC = () => {
         className="absolute top-4 right-4 flex items-center gap-2 px-4 py-2 bg-white text-purple-600 rounded-lg shadow-md hover:shadow-lg hover:bg-purple-50 transition-all"
       >
         <LogIn className="w-4 h-4" />
-        <span className="font-medium">Admin Login</span>
+        <span className="font-medium">{t('adminLogin')}</span>
       </button>
 
       <div className={`bg-white rounded-2xl shadow-xl w-full max-w-md p-8 ${shake ? 'animate-shake' : ''}`}>
@@ -182,8 +182,8 @@ const LandingPage: React.FC = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mb-4">
             <FileText className="w-8 h-8 text-purple-600" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-800">Questionnaire Portal</h1>
-          <p className="text-gray-600 mt-2">Enter your questionnaire code to begin</p>
+          <h1 className="text-3xl font-bold text-gray-800">{t('questionnairePortal')}</h1>
+          <p className="text-gray-600 mt-2">{t('enterCodeToBegin')}</p>
           <div className="mt-4 flex justify-center">
             <LanguageSelector variant="compact" />
           </div>
@@ -199,7 +199,7 @@ const LandingPage: React.FC = () => {
         <form onSubmit={handleCodeSubmit} className="space-y-6">
           <div>
             <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-2">
-              Questionnaire Code
+              {t('questionnaireCode')}
             </label>
             <input
               type="text"
@@ -207,7 +207,7 @@ const LandingPage: React.FC = () => {
               value={code}
               onChange={(e) => setCode(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition"
-              placeholder="Enter your code"
+              placeholder={t('enterYourCode')}
               required
             />
           </div>
@@ -226,7 +226,7 @@ const LandingPage: React.FC = () => {
               </span>
             ) : (
               <>
-                Continue
+                {t('continue')}
                 <ArrowRight className="w-5 h-5" />
               </>
             )}
