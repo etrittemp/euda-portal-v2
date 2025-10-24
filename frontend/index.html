@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Primary Meta Tags -->
+    <title>EUDA Questionnaire Portal - Multi-language Surveys</title>
+    <meta name="title" content="EUDA Questionnaire Portal" />
+    <meta name="description" content="Professional multi-language questionnaire platform with admin dashboard. Create, manage, and analyze surveys in English, Albanian, and Serbian." />
+    <meta name="keywords" content="questionnaire, survey, EUDA, multi-language, admin, dashboard" />
+    <meta name="author" content="EUDA" />
+
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#9333ea" />
+    <meta name="msapplication-TileColor" content="#9333ea" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- PWA Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="EUDA Portal" />
+    <meta name="application-name" content="EUDA Portal" />
+
+    <!-- Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-192x192.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icon-192x192.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icon-192x192.png" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://euda-portal.com/" />
+    <meta property="og:title" content="EUDA Questionnaire Portal" />
+    <meta property="og:description" content="Professional multi-language questionnaire platform" />
+    <meta property="og:image" content="/screenshot-wide.png" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://euda-portal.com/" />
+    <meta property="twitter:title" content="EUDA Questionnaire Portal" />
+    <meta property="twitter:description" content="Professional multi-language questionnaire platform" />
+    <meta property="twitter:image" content="/screenshot-wide.png" />
+
+    <!-- Preconnect to API -->
+    <link rel="preconnect" href="https://api.euda-portal.com" crossorigin />
+
+    <!-- DNS Prefetch -->
+    <link rel="dns-prefetch" href="https://api.euda-portal.com" />
+  </head>
+  <body>
+    <noscript>
+      <div style="text-align: center; padding: 50px; font-family: sans-serif;">
+        <h1>JavaScript Required</h1>
+        <p>Please enable JavaScript to use the EUDA Questionnaire Portal.</p>
+      </div>
+    </noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker
+            .register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered:', registration);
+
+              // Check for updates periodically
+              setInterval(() => {
+                registration.update();
+              }, 60000); // Check every minute
+            })
+            .catch((error) => {
+              console.log('SW registration failed:', error);
+            });
+        });
+      }
+    </script>
+  </body>
+</html>
