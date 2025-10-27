@@ -229,25 +229,23 @@ const QuestionnaireBuilder: React.FC = () => {
     }
   }, [id]);
 
-  // Autosave effect - debounced save after 2 seconds of inactivity
-  useEffect(() => {
-    if (!id || loading) return; // Don't autosave if no ID or still loading
-
-    const timeoutId = setTimeout(async () => {
-      try {
-        setAutoSaving(true);
-        await questionnaireAPI.update(id, questionnaire);
-        setLastSaved(new Date());
-      } catch (err: any) {
-        console.error('Autosave error:', err);
-        // Silent fail for autosave - don't show error to user
-      } finally {
-        setAutoSaving(false);
-      }
-    }, 2000); // 2 second debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [questionnaire, id, loading]);
+  // AUTOSAVE DISABLED - The update endpoint deletes all sections before recreating
+  // This caused data loss. Need to implement a safe patch endpoint first.
+  // useEffect(() => {
+  //   if (!id || loading) return;
+  //   const timeoutId = setTimeout(async () => {
+  //     try {
+  //       setAutoSaving(true);
+  //       await questionnaireAPI.update(id, questionnaire);
+  //       setLastSaved(new Date());
+  //     } catch (err: any) {
+  //       console.error('Autosave error:', err);
+  //     } finally {
+  //       setAutoSaving(false);
+  //     }
+  //   }, 2000);
+  //   return () => clearTimeout(timeoutId);
+  // }, [questionnaire, id, loading]);
 
   const loadQuestionnaire = async () => {
     try {
