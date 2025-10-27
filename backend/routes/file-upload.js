@@ -1326,6 +1326,12 @@ router.post('/convert', authenticateToken, requireAdmin, upload.single('file'), 
       };
     });
 
+    // Log what we're about to insert for debugging
+    console.log('[FILE UPLOAD] Creating questionnaire with:');
+    console.log('[FILE UPLOAD] - Title:', title);
+    console.log('[FILE UPLOAD] - Sections count:', cleanedSections.length);
+    console.log('[FILE UPLOAD] - First section structure:', JSON.stringify(cleanedSections[0], null, 2).substring(0, 500));
+
     // Create questionnaire with sections as JSONB
     const { data: questionnaire, error: qError } = await supabase
       .from('questionnaires')
@@ -1340,8 +1346,18 @@ router.post('/convert', authenticateToken, requireAdmin, upload.single('file'), 
       .single();
 
     if (qError) {
-      console.error('Create questionnaire error:', qError);
-      return res.status(500).json({ error: 'Failed to create questionnaire' });
+      console.error('[FILE UPLOAD] Create questionnaire error - FULL DETAILS:');
+      console.error('[FILE UPLOAD] Error message:', qError.message);
+      console.error('[FILE UPLOAD] Error code:', qError.code);
+      console.error('[FILE UPLOAD] Error details:', qError.details);
+      console.error('[FILE UPLOAD] Error hint:', qError.hint);
+      console.error('[FILE UPLOAD] Full error object:', JSON.stringify(qError, null, 2));
+      return res.status(500).json({
+        error: 'Failed to create questionnaire',
+        details: qError.message,
+        code: qError.code,
+        hint: qError.hint
+      });
     }
 
     const totalQuestionsInserted = allQuestions.length;
