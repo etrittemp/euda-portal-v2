@@ -124,6 +124,11 @@ export const questionnaireAPI = {
     return response.data.questionnaire || response.data; // Handle both response formats
   },
 
+  autosave: async (id: string, data: any) => {
+    const response = await api.patch(`/api/questionnaires/${id}/autosave`, data);
+    return response.data.questionnaire || response.data;
+  },
+
   delete: async (id: string, force: boolean = false) => {
     const response = await api.delete(`/api/questionnaires/${id}${force ? '?force=true' : ''}`);
     return response.data;

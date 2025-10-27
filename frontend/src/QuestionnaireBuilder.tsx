@@ -229,23 +229,31 @@ const QuestionnaireBuilder: React.FC = () => {
     }
   }, [id]);
 
-  // AUTOSAVE DISABLED - The update endpoint deletes all sections before recreating
-  // This caused data loss. Need to implement a safe patch endpoint first.
-  // useEffect(() => {
-  //   if (!id || loading) return;
-  //   const timeoutId = setTimeout(async () => {
-  //     try {
-  //       setAutoSaving(true);
-  //       await questionnaireAPI.update(id, questionnaire);
-  //       setLastSaved(new Date());
-  //     } catch (err: any) {
-  //       console.error('Autosave error:', err);
-  //     } finally {
-  //       setAutoSaving(false);
-  //     }
-  //   }, 2000);
-  //   return () => clearTimeout(timeoutId);
-  // }, [questionnaire, id, loading]);
+  // SAFE AUTOSAVE - Uses PATCH endpoint that doesn't delete data
+  useEffect(() => {
+    if (!id || loading) return; // Don't autosave if no ID or still loading
+
+    const timeoutId = setTimeout(async () => {
+      // Validate data before autosaving
+      if (!questionnaire.title || !questionnaire.sections || questionnaire.sections.length === 0) {
+        console.warn('Skipping autosave - invalid data structure');
+        return;
+      }
+
+      try {
+        setAutoSaving(true);
+        await questionnaireAPI.autosave(id, questionnaire); // Use SAFE autosave endpoint
+        setLastSaved(new Date());
+      } catch (err: any) {
+        console.error('Autosave error:', err);
+        // Silent fail for autosave - don't disrupt user
+      } finally {
+        setAutoSaving(false);
+      }
+    }, 2000); // 2 second debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [questionnaire, id, loading]);
 
   const loadQuestionnaire = async () => {
     try {

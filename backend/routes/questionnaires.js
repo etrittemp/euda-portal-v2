@@ -467,6 +467,70 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
 });
 
 // ============================================
+// SAFE AUTOSAVE ENDPOINT - PATCH (doesn't delete anything)
+// ============================================
+router.patch('/:id/autosave', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, status, password, sections } = req.body;
+
+    // Validate that we have data to save
+    if (!title || !sections || !Array.isArray(sections)) {
+      return res.status(400).json({ error: 'Invalid data: title and sections required' });
+    }
+
+    // Validate sections structure
+    if (sections.length === 0) {
+      return res.status(400).json({ error: 'Cannot save questionnaire with no sections' });
+    }
+
+    // Build update object
+    const updates = {
+      title,
+      description: description || '',
+      sections: sections, // Store as JSONB
+      updated_at: new Date().toISOString()
+    };
+
+    // Only update password if explicitly provided
+    if (password !== undefined) {
+      updates.password = password && password.trim() ? password.trim() : null;
+    }
+
+    // Only update status if provided
+    if (status !== undefined) {
+      updates.status = status;
+      if (status === 'active' && !updates.published_at) {
+        updates.published_at = new Date().toISOString();
+      }
+    }
+
+    // Perform the update - this ONLY updates the questionnaires table
+    // NO DELETION happens here
+    const { data, error } = await supabase
+      .from('questionnaires')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Autosave error:', error);
+      return res.status(500).json({ error: 'Failed to autosave questionnaire' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Questionnaire autosaved successfully',
+      questionnaire: data
+    });
+  } catch (error) {
+    console.error('Autosave questionnaire error:', error);
+    res.status(500).json({ error: 'Failed to autosave questionnaire' });
+  }
+});
+
+// ============================================
 // DELETE QUESTIONNAIRE
 // ============================================
 router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
