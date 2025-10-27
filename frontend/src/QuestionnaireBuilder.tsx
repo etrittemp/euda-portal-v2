@@ -86,6 +86,10 @@ const QuestionnaireBuilder: React.FC = () => {
   const [currentLanguage, setCurrentLanguage] = useState<'en' | 'sq' | 'sr'>('en');
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [libraryModalOpen, setLibraryModalOpen] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [selectedQuestions, setSelectedQuestions] = useState<Set<string>>(new Set());
+  const [draggedSection, setDraggedSection] = useState<number | null>(null);
 
   const questionTypes = [
     { value: 'text', label: { en: 'Short Text', sq: 'Tekst i Shkurtër', sr: 'Кратак текст' }, icon: '📝' },
@@ -224,6 +228,26 @@ const QuestionnaireBuilder: React.FC = () => {
       loadQuestionnaire();
     }
   }, [id]);
+
+  // Autosave effect - debounced save after 2 seconds of inactivity
+  useEffect(() => {
+    if (!id || loading) return; // Don't autosave if no ID or still loading
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        setAutoSaving(true);
+        await questionnaireAPI.update(id, questionnaire);
+        setLastSaved(new Date());
+      } catch (err: any) {
+        console.error('Autosave error:', err);
+        // Silent fail for autosave - don't show error to user
+      } finally {
+        setAutoSaving(false);
+      }
+    }, 2000); // 2 second debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [questionnaire, id, loading]);
 
   const loadQuestionnaire = async () => {
     try {
@@ -457,20 +481,128 @@ const QuestionnaireBuilder: React.FC = () => {
     }));
   };
 
+  // Drag and drop handlers for sections
+  const handleSectionDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedSection(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleSectionDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleSectionDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedSection === null || draggedSection === targetIndex) return;
+
+    const newSections = [...questionnaire.sections];
+    const [movedSection] = newSections.splice(draggedSection, 1);
+    newSections.splice(targetIndex, 0, movedSection);
+
+    setQuestionnaire(prev => ({
+      ...prev,
+      sections: newSections.map((section, i) => ({ ...section, order_index: i }))
+    }));
+
+    // Update active section if needed
+    if (activeSection === draggedSection) {
+      setActiveSection(targetIndex);
+    } else if (activeSection >= Math.min(draggedSection, targetIndex) &&
+               activeSection <= Math.max(draggedSection, targetIndex)) {
+      if (draggedSection < targetIndex) {
+        setActiveSection(activeSection - 1);
+      } else {
+        setActiveSection(activeSection + 1);
+      }
+    }
+
+    setDraggedSection(null);
+  };
+
+  const handleSectionDragEnd = () => {
+    setDraggedSection(null);
+  };
+
+  // Multi-select question handlers
+  const toggleQuestionSelection = (questionId: string) => {
+    const newSelected = new Set(selectedQuestions);
+    if (newSelected.has(questionId)) {
+      newSelected.delete(questionId);
+    } else {
+      newSelected.add(questionId);
+    }
+    setSelectedQuestions(newSelected);
+  };
+
+  const createSectionFromSelected = () => {
+    if (selectedQuestions.size === 0) {
+      showToast.error('Please select at least one question');
+      return;
+    }
+
+    // Gather all selected questions from all sections
+    const selectedQuestionsData: Question[] = [];
+    questionnaire.sections.forEach(section => {
+      section.questions.forEach(q => {
+        if (selectedQuestions.has(q.id)) {
+          selectedQuestionsData.push({ ...q, order_index: selectedQuestionsData.length });
+        }
+      });
+    });
+
+    // Create new section with selected questions
+    const newSection: Section = {
+      id: `section-${Date.now()}`,
+      title: {
+        en: `Section ${questionnaire.sections.length + 1}`,
+        sq: `Seksioni ${questionnaire.sections.length + 1}`,
+        sr: `Секција ${questionnaire.sections.length + 1}`
+      },
+      description: { en: '', sq: '', sr: '' },
+      order_index: questionnaire.sections.length,
+      questions: selectedQuestionsData
+    };
+
+    // Remove selected questions from original sections
+    const updatedSections = questionnaire.sections.map(section => ({
+      ...section,
+      questions: section.questions.filter(q => !selectedQuestions.has(q.id))
+    }));
+
+    setQuestionnaire(prev => ({
+      ...prev,
+      sections: [...updatedSections, newSection]
+    }));
+
+    // Clear selection and switch to new section
+    setSelectedQuestions(new Set());
+    setActiveSection(questionnaire.sections.length);
+    showToast.success('New section created from selected questions!');
+  };
+
   const renderQuestionEditor = (question: Question, sectionIndex: number, questionIndex: number) => {
     const isActive = activeQuestion === question.id;
     const hasOptions = ['boolean', 'radio', 'checkbox', 'select'].includes(question.question_type);
+    const isSelected = selectedQuestions.has(question.id);
 
     return (
       <div
         key={question.id}
         className={`bg-white rounded-lg shadow-md mb-4 transition-all ${
           isActive ? 'ring-2 ring-purple-500' : ''
-        }`}
+        } ${isSelected ? 'ring-2 ring-blue-400' : ''}`}
       >
         <div className="p-4">
           {/* Question Header */}
           <div className="flex items-start gap-3 mb-3">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => toggleQuestionSelection(question.id)}
+              className="mt-2 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              title="Select question"
+            />
             <GripVertical className="w-5 h-5 text-gray-400 mt-2 cursor-move" />
 
             <div className="flex-1">
@@ -723,6 +855,21 @@ const QuestionnaireBuilder: React.FC = () => {
                   placeholder={tr('untitledQuestionnaire')}
                   className="text-xl font-semibold text-gray-900 border-none focus:outline-none focus:ring-0 px-0"
                 />
+                {id && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    {autoSaving ? (
+                      <span className="flex items-center gap-1">
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-purple-600"></div>
+                        Saving...
+                      </span>
+                    ) : lastSaved ? (
+                      <span className="flex items-center gap-1">
+                        <Check className="w-3 h-3 text-green-600" />
+                        Saved {new Date(lastSaved).toLocaleTimeString()}
+                      </span>
+                    ) : null}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -820,17 +967,31 @@ const QuestionnaireBuilder: React.FC = () => {
         <div className="bg-white rounded-lg shadow-md mb-6 overflow-hidden">
           <div className="flex items-center border-b border-gray-200 overflow-x-auto">
             {questionnaire.sections.map((section, index) => (
-              <button
+              <div
                 key={section.id}
-                onClick={() => setActiveSection(index)}
-                className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                draggable
+                onDragStart={(e) => handleSectionDragStart(e, index)}
+                onDragOver={(e) => handleSectionDragOver(e, index)}
+                onDrop={(e) => handleSectionDrop(e, index)}
+                onDragEnd={handleSectionDragEnd}
+                className={`flex items-center gap-1 border-b-2 transition-all ${
                   activeSection === index
-                    ? 'border-purple-600 text-purple-600 bg-purple-50'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                }`}
+                    ? 'border-purple-600 bg-purple-50'
+                    : 'border-transparent hover:bg-gray-50'
+                } ${draggedSection === index ? 'opacity-50' : ''}`}
               >
-                {section.title[currentLanguage] || `Section ${index + 1}`}
-              </button>
+                <GripVertical className="w-4 h-4 text-gray-400 ml-2 cursor-grab active:cursor-grabbing" />
+                <button
+                  onClick={() => setActiveSection(index)}
+                  className={`px-3 py-3 text-sm font-medium whitespace-nowrap ${
+                    activeSection === index
+                      ? 'text-purple-600'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  {section.title[currentLanguage] || `Section ${index + 1}`}
+                </button>
+              </div>
             ))}
             <button
               onClick={addSection}
@@ -896,6 +1057,32 @@ const QuestionnaireBuilder: React.FC = () => {
 
         {/* Questions */}
         <div className="mb-6">
+          {selectedQuestions.size > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Check className="w-5 h-5 text-blue-600" />
+                <span className="text-sm font-medium text-blue-900">
+                  {selectedQuestions.size} {selectedQuestions.size === 1 ? 'question' : 'questions'} selected
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSelectedQuestions(new Set())}
+                  className="px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-100 rounded-lg"
+                >
+                  Clear Selection
+                </button>
+                <button
+                  onClick={createSectionFromSelected}
+                  className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-1"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Section from Selected
+                </button>
+              </div>
+            </div>
+          )}
+
           {currentSection.questions.map((question, qIndex) =>
             renderQuestionEditor(question, activeSection, qIndex)
           )}
