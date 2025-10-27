@@ -42,7 +42,7 @@ router.get('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Get questionnaire
+    // Get questionnaire with sections from JSONB column
     const { data: questionnaire, error: qError } = await supabase
       .from('questionnaires')
       .select('*')
@@ -53,40 +53,13 @@ router.get('/:id', authenticateToken, requireAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Questionnaire not found' });
     }
 
-    // Get sections
-    const { data: sections, error: sError } = await supabase
-      .from('questionnaire_sections')
-      .select('*')
-      .eq('questionnaire_id', id)
-      .order('order_index', { ascending: true });
-
-    if (sError) {
-      console.error('Fetch sections error:', sError);
-      return res.status(500).json({ error: 'Failed to fetch sections' });
+    // Sections are already in questionnaire.sections (JSONB column)
+    // Ensure sections is an array (handle old data or null)
+    if (!questionnaire.sections || !Array.isArray(questionnaire.sections)) {
+      questionnaire.sections = [];
     }
 
-    // Get all questions for this questionnaire
-    const { data: questions, error: qsError } = await supabase
-      .from('questions')
-      .select('*')
-      .eq('questionnaire_id', id)
-      .order('order_index', { ascending: true });
-
-    if (qsError) {
-      console.error('Fetch questions error:', qsError);
-      return res.status(500).json({ error: 'Failed to fetch questions' });
-    }
-
-    // Organize questions by section
-    const sectionsWithQuestions = sections.map(section => ({
-      ...section,
-      questions: questions.filter(q => q.section_id === section.id)
-    }));
-
-    res.json({
-      ...questionnaire,
-      sections: sectionsWithQuestions
-    });
+    res.json(questionnaire);
   } catch (error) {
     console.error('Fetch questionnaire error:', error);
     res.status(500).json({ error: 'Failed to fetch questionnaire' });
@@ -156,7 +129,7 @@ router.get('/public/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Only allow active questionnaires
+    // Only allow active questionnaires - sections from JSONB column
     const { data: questionnaire, error: qError } = await supabase
       .from('questionnaires')
       .select('*')
@@ -168,40 +141,13 @@ router.get('/public/:id', async (req, res) => {
       return res.status(404).json({ error: 'Questionnaire not found or not active' });
     }
 
-    // Get sections
-    const { data: sections, error: sError } = await supabase
-      .from('questionnaire_sections')
-      .select('*')
-      .eq('questionnaire_id', id)
-      .order('order_index', { ascending: true });
-
-    if (sError) {
-      console.error('Fetch sections error:', sError);
-      return res.status(500).json({ error: 'Failed to fetch sections' });
+    // Sections are already in questionnaire.sections (JSONB column)
+    // Ensure sections is an array
+    if (!questionnaire.sections || !Array.isArray(questionnaire.sections)) {
+      questionnaire.sections = [];
     }
 
-    // Get questions
-    const { data: questions, error: qsError } = await supabase
-      .from('questions')
-      .select('*')
-      .eq('questionnaire_id', id)
-      .order('order_index', { ascending: true });
-
-    if (qsError) {
-      console.error('Fetch questions error:', qsError);
-      return res.status(500).json({ error: 'Failed to fetch questions' });
-    }
-
-    // Organize questions by section
-    const sectionsWithQuestions = sections.map(section => ({
-      ...section,
-      questions: questions.filter(q => q.section_id === section.id)
-    }));
-
-    res.json({
-      ...questionnaire,
-      sections: sectionsWithQuestions
-    });
+    res.json(questionnaire);
   } catch (error) {
     console.error('Fetch public questionnaire error:', error);
     res.status(500).json({ error: 'Failed to fetch questionnaire' });
@@ -219,11 +165,12 @@ router.post('/', authenticateToken, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Title is required' });
     }
 
-    // Create questionnaire
+    // Create questionnaire with sections as JSONB
     const questionnaireData = {
       title,
       description,
       status,
+      sections: sections, // Store sections as JSONB directly
       created_by: req.user.id,
       published_at: status === 'active' ? new Date().toISOString() : null
     };
@@ -242,53 +189,6 @@ router.post('/', authenticateToken, requireAdmin, async (req, res) => {
     if (qError) {
       console.error('Create questionnaire error:', qError);
       return res.status(500).json({ error: 'Failed to create questionnaire' });
-    }
-
-    // Create sections if provided
-    if (sections.length > 0) {
-      const sectionsData = sections.map((section, index) => ({
-        questionnaire_id: questionnaire.id,
-        title: section.title,
-        description: section.description,
-        order_index: section.order_index !== undefined ? section.order_index : index
-      }));
-
-      const { data: createdSections, error: sError } = await supabase
-        .from('questionnaire_sections')
-        .insert(sectionsData)
-        .select();
-
-      if (sError) {
-        console.error('Create sections error:', sError);
-        // Don't fail completely, just log the error
-      }
-
-      // Create questions if provided in sections
-      for (const [sectionIndex, section] of sections.entries()) {
-        if (section.questions && section.questions.length > 0 && createdSections) {
-          const sectionId = createdSections[sectionIndex].id;
-
-          const questionsData = section.questions.map((question, qIndex) => ({
-            section_id: sectionId,
-            questionnaire_id: questionnaire.id,
-            question_text: question.question_text,
-            question_type: question.question_type,
-            options: question.options || null,
-            required: question.required || false,
-            order_index: question.order_index !== undefined ? question.order_index : qIndex,
-            validation_rules: question.validation_rules || null,
-            help_text: question.help_text || null
-          }));
-
-          const { error: qsError } = await supabase
-            .from('questions')
-            .insert(questionsData);
-
-          if (qsError) {
-            console.error('Create questions error:', qsError);
-          }
-        }
-      }
     }
 
     res.status(201).json({
@@ -310,6 +210,7 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
     const { id } = req.params;
     const { title, description, status, password, sections } = req.body;
 
+    // Build update object
     const updates = {};
     if (title !== undefined) updates.title = title;
     if (description !== undefined) updates.description = description;
@@ -325,6 +226,14 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
       }
     }
 
+    // Store sections as JSONB (no more separate tables)
+    if (sections !== undefined) {
+      updates.sections = sections;
+    }
+
+    updates.updated_at = new Date().toISOString();
+
+    // Single update operation - no DELETEs, no separate table operations
     const { data, error } = await supabase
       .from('questionnaires')
       .update(updates)
@@ -335,124 +244,6 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
     if (error) {
       console.error('Update questionnaire error:', error);
       return res.status(500).json({ error: 'Failed to update questionnaire' });
-    }
-
-    // If sections are provided, update them
-    if (sections && Array.isArray(sections)) {
-      // Delete all existing sections and questions for this questionnaire
-      await supabase
-        .from('questions')
-        .delete()
-        .eq('questionnaire_id', id);
-
-      await supabase
-        .from('questionnaire_sections')
-        .delete()
-        .eq('questionnaire_id', id);
-
-      // Create new sections
-      if (sections.length > 0) {
-        const sectionsData = sections.map((section, index) => {
-          const sectionData = {
-            questionnaire_id: id,
-            title: section.title,
-            description: section.description,
-            order_index: section.order_index !== undefined ? section.order_index : index
-          };
-
-          // Only include ID if it's a valid UUID (not a temporary client-side ID)
-          if (section.id &&
-              typeof section.id === 'string' &&
-              section.id.length > 0 &&
-              !section.id.startsWith('section-') &&
-              !section.id.startsWith('temp-')) {
-            sectionData.id = section.id;
-          }
-
-          // Remove any undefined or null values from the object
-          Object.keys(sectionData).forEach(key => {
-            if (sectionData[key] === undefined || sectionData[key] === null) {
-              delete sectionData[key];
-            }
-          });
-
-          return sectionData;
-        });
-
-        // CRITICAL: Filter out any sections that somehow still have null/undefined id
-        const cleanedSectionsData = sectionsData.filter(s => {
-          if (s.id === null || s.id === undefined) {
-            delete s.id; // Remove the id field entirely
-          }
-          return true; // Keep all sections, just cleaned
-        });
-
-        const { data: createdSections, error: sError } = await supabase
-          .from('questionnaire_sections')
-          .insert(cleanedSectionsData)
-          .select();
-
-        if (sError) {
-          console.error('Create sections error:', sError);
-          return res.status(500).json({ error: 'Failed to update sections' });
-        }
-
-        // Create questions
-        for (const [sectionIndex, section] of sections.entries()) {
-          if (section.questions && section.questions.length > 0 && createdSections) {
-            const sectionId = createdSections[sectionIndex].id;
-
-            const questionsData = section.questions.map((question, qIndex) => {
-              const questionData = {
-                section_id: sectionId,
-                questionnaire_id: id,
-                question_text: question.question_text,
-                question_type: question.question_type,
-                options: question.options || null,
-                required: question.required || false,
-                order_index: question.order_index !== undefined ? question.order_index : qIndex,
-                validation_rules: question.validation_rules || null,
-                help_text: question.help_text || null
-              };
-
-              // Only include ID if it's a valid UUID (not a temporary client-side ID)
-              if (question.id &&
-                  typeof question.id === 'string' &&
-                  question.id.length > 0 &&
-                  !question.id.startsWith('question-') &&
-                  !question.id.startsWith('temp-')) {
-                questionData.id = question.id;
-              }
-
-              // Remove any undefined or null values from the object
-              Object.keys(questionData).forEach(key => {
-                if (questionData[key] === undefined || questionData[key] === null) {
-                  delete questionData[key];
-                }
-              });
-
-              return questionData;
-            });
-
-            // CRITICAL: Filter out any questions that somehow still have null/undefined id
-            const cleanedQuestionsData = questionsData.filter(q => {
-              if (q.id === null || q.id === undefined) {
-                delete q.id; // Remove the id field entirely
-              }
-              return true; // Keep all questions, just cleaned
-            });
-
-            const { error: qsError } = await supabase
-              .from('questions')
-              .insert(cleanedQuestionsData);
-
-            if (qsError) {
-              console.error('Create questions error:', qsError);
-              return res.status(500).json({ error: 'Failed to update questions' });
-            }
-          }
-        }
-      }
     }
 
     res.json({
@@ -637,7 +428,7 @@ router.post('/:id/duplicate', authenticateToken, requireAdmin, async (req, res) 
     const { id } = req.params;
     const { title } = req.body;
 
-    // Get original questionnaire with all details
+    // Get original questionnaire with sections from JSONB
     const { data: original, error: qError } = await supabase
       .from('questionnaires')
       .select('*')
@@ -648,13 +439,24 @@ router.post('/:id/duplicate', authenticateToken, requireAdmin, async (req, res) 
       return res.status(404).json({ error: 'Questionnaire not found' });
     }
 
-    // Create new questionnaire
+    // Generate new IDs for sections and questions to avoid conflicts
+    const duplicatedSections = (original.sections || []).map(section => ({
+      ...section,
+      id: `section-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      questions: (section.questions || []).map(question => ({
+        ...question,
+        id: `question-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      }))
+    }));
+
+    // Create new questionnaire with duplicated sections as JSONB
     const { data: newQuestionnaire, error: nqError } = await supabase
       .from('questionnaires')
       .insert([{
         title: title || `${original.title} (Copy)`,
         description: original.description,
         status: 'draft',
+        sections: duplicatedSections,
         created_by: req.user.id,
         version: 1
       }])
@@ -664,75 +466,6 @@ router.post('/:id/duplicate', authenticateToken, requireAdmin, async (req, res) 
     if (nqError) {
       console.error('Duplicate questionnaire error:', nqError);
       return res.status(500).json({ error: 'Failed to duplicate questionnaire' });
-    }
-
-    // Get and duplicate sections
-    const { data: sections, error: sError } = await supabase
-      .from('questionnaire_sections')
-      .select('*')
-      .eq('questionnaire_id', id)
-      .order('order_index', { ascending: true });
-
-    if (sError) {
-      console.error('Fetch sections error:', sError);
-      return res.status(500).json({ error: 'Failed to fetch sections' });
-    }
-
-    if (sections && sections.length > 0) {
-      const newSections = sections.map(s => ({
-        questionnaire_id: newQuestionnaire.id,
-        title: s.title,
-        description: s.description,
-        order_index: s.order_index
-      }));
-
-      const { data: createdSections, error: csError } = await supabase
-        .from('questionnaire_sections')
-        .insert(newSections)
-        .select();
-
-      if (csError) {
-        console.error('Create sections error:', csError);
-      }
-
-      // Get and duplicate questions
-      const { data: questions, error: qsError } = await supabase
-        .from('questions')
-        .select('*')
-        .eq('questionnaire_id', id)
-        .order('order_index', { ascending: true });
-
-      if (qsError) {
-        console.error('Fetch questions error:', qsError);
-      }
-
-      if (questions && questions.length > 0 && createdSections) {
-        // Map old section IDs to new section IDs
-        const sectionMap = {};
-        sections.forEach((oldSection, index) => {
-          sectionMap[oldSection.id] = createdSections[index].id;
-        });
-
-        const newQuestions = questions.map(q => ({
-          section_id: sectionMap[q.section_id],
-          questionnaire_id: newQuestionnaire.id,
-          question_text: q.question_text,
-          question_type: q.question_type,
-          options: q.options,
-          required: q.required,
-          order_index: q.order_index,
-          validation_rules: q.validation_rules,
-          help_text: q.help_text
-        }));
-
-        const { error: cqError } = await supabase
-          .from('questions')
-          .insert(newQuestions);
-
-        if (cqError) {
-          console.error('Create questions error:', cqError);
-        }
-      }
     }
 
     res.status(201).json({
@@ -751,10 +484,10 @@ router.post('/:id/duplicate', authenticateToken, requireAdmin, async (req, res) 
 // ============================================
 router.get('/library/all', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    // Get all questionnaires
+    // Get all questionnaires with sections from JSONB
     const { data: questionnaires, error: qError } = await supabase
       .from('questionnaires')
-      .select('id, title, description, status, created_at')
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (qError) {
@@ -762,41 +495,21 @@ router.get('/library/all', authenticateToken, requireAdmin, async (req, res) => 
       return res.status(500).json({ error: 'Failed to fetch questionnaires' });
     }
 
-    // Get all sections
-    const { data: sections, error: sError } = await supabase
-      .from('questionnaire_sections')
-      .select('*')
-      .order('order_index', { ascending: true });
-
-    if (sError) {
-      console.error('Fetch sections error:', sError);
-      return res.status(500).json({ error: 'Failed to fetch sections' });
-    }
-
-    // Get all questions
-    const { data: questions, error: qsError } = await supabase
-      .from('questions')
-      .select('*')
-      .order('order_index', { ascending: true });
-
-    if (qsError) {
-      console.error('Fetch questions error:', qsError);
-      return res.status(500).json({ error: 'Failed to fetch questions' });
-    }
-
-    // Organize data into a tree structure
+    // Format data for library view with question counts
     const questionnairesWithData = questionnaires.map(questionnaire => {
-      const questionnaireSections = sections.filter(s => s.questionnaire_id === questionnaire.id);
-
-      const sectionsWithQuestions = questionnaireSections.map(section => ({
+      const sections = (questionnaire.sections || []).map(section => ({
         ...section,
-        questionCount: questions.filter(q => q.section_id === section.id).length,
-        questions: questions.filter(q => q.section_id === section.id)
+        questionCount: (section.questions || []).length,
+        questionnaire_id: questionnaire.id // Add for compatibility
       }));
 
       return {
-        ...questionnaire,
-        sections: sectionsWithQuestions
+        id: questionnaire.id,
+        title: questionnaire.title,
+        description: questionnaire.description,
+        status: questionnaire.status,
+        created_at: questionnaire.created_at,
+        sections: sections
       };
     });
 
@@ -820,6 +533,7 @@ router.post('/clone-sections', authenticateToken, requireAdmin, async (req, res)
 
     let questionnaireId = targetQuestionnaireId;
     let isNewQuestionnaire = false;
+    let targetSections = [];
 
     // Create new questionnaire if targetQuestionnaireId is null
     if (!targetQuestionnaireId) {
@@ -833,6 +547,7 @@ router.post('/clone-sections', authenticateToken, requireAdmin, async (req, res)
           title,
           description: description || '',
           status: 'draft',
+          sections: [], // Initialize with empty sections
           created_by: req.user.id
         }])
         .select()
@@ -845,156 +560,135 @@ router.post('/clone-sections', authenticateToken, requireAdmin, async (req, res)
 
       questionnaireId = newQuestionnaire.id;
       isNewQuestionnaire = true;
+      targetSections = [];
+    } else {
+      // Get existing questionnaire and its sections
+      const { data: existingQuestionnaire, error: eqError } = await supabase
+        .from('questionnaires')
+        .select('*')
+        .eq('id', targetQuestionnaireId)
+        .single();
+
+      if (eqError || !existingQuestionnaire) {
+        return res.status(404).json({ error: 'Target questionnaire not found' });
+      }
+
+      targetSections = existingQuestionnaire.sections || [];
     }
 
     let sectionsAdded = 0;
     let questionsAdded = 0;
-    const sectionIdMap = {}; // Map old section IDs to new ones
+    const sectionIdMap = {}; // Map old section IDs to new cloned section data
+
+    // Collect all unique source questionnaire IDs
+    const sourceQuestionnaireIds = [...new Set(items.map(item => item.questionnaireId))];
+
+    // Fetch all source questionnaires at once
+    const { data: sourceQuestionnaires, error: sqError } = await supabase
+      .from('questionnaires')
+      .select('*')
+      .in('id', sourceQuestionnaireIds);
+
+    if (sqError) {
+      console.error('Fetch source questionnaires error:', sqError);
+      return res.status(500).json({ error: 'Failed to fetch source questionnaires' });
+    }
+
+    // Create a map for quick lookup
+    const questionnaireMap = {};
+    sourceQuestionnaires.forEach(q => {
+      questionnaireMap[q.id] = q.sections || [];
+    });
 
     // Process each item
     for (const item of items) {
-      if (item.type === 'section') {
-        // Clone entire section with all questions
-        const { data: originalSection, error: sError } = await supabase
-          .from('questionnaire_sections')
-          .select('*')
-          .eq('id', item.sectionId)
-          .single();
+      const sourceSections = questionnaireMap[item.questionnaireId] || [];
 
-        if (sError || !originalSection) {
-          console.error('Fetch section error:', sError);
+      if (item.type === 'section') {
+        // Find and clone entire section with all questions
+        const originalSection = sourceSections.find(s => s.id === item.sectionId);
+
+        if (!originalSection) {
+          console.error('Section not found:', item.sectionId);
           continue;
         }
 
-        // Create new section
-        const { data: newSection, error: nsError } = await supabase
-          .from('questionnaire_sections')
-          .insert([{
-            questionnaire_id: questionnaireId,
+        // Create cloned section with new IDs
+        const clonedSection = {
+          ...originalSection,
+          id: `section-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          order_index: targetSections.length,
+          questions: (originalSection.questions || []).map(q => ({
+            ...q,
+            id: `question-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          }))
+        };
+
+        targetSections.push(clonedSection);
+        sectionIdMap[item.sectionId] = clonedSection;
+        sectionsAdded++;
+        questionsAdded += clonedSection.questions.length;
+
+      } else if (item.type === 'question') {
+        // Find and clone individual question
+        let originalQuestion = null;
+        let originalSection = null;
+
+        for (const section of sourceSections) {
+          const found = (section.questions || []).find(q => q.id === item.questionId);
+          if (found) {
+            originalQuestion = found;
+            originalSection = section;
+            break;
+          }
+        }
+
+        if (!originalQuestion || !originalSection) {
+          console.error('Question not found:', item.questionId);
+          continue;
+        }
+
+        // Check if we already created a section for this source section
+        let targetSection = sectionIdMap[item.sectionId];
+
+        if (!targetSection) {
+          // Create new section for orphaned questions
+          targetSection = {
+            id: `section-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             title: originalSection.title,
             description: originalSection.description,
-            order_index: sectionsAdded
-          }])
-          .select()
-          .single();
-
-        if (nsError) {
-          console.error('Create section error:', nsError);
-          continue;
-        }
-
-        sectionIdMap[item.sectionId] = newSection.id;
-        sectionsAdded++;
-
-        // Get all questions from original section
-        const { data: originalQuestions, error: qError } = await supabase
-          .from('questions')
-          .select('*')
-          .eq('section_id', item.sectionId)
-          .order('order_index', { ascending: true });
-
-        if (qError || !originalQuestions) {
-          console.error('Fetch questions error:', qError);
-          continue;
-        }
-
-        // Clone all questions
-        if (originalQuestions.length > 0) {
-          const newQuestions = originalQuestions.map((q, index) => ({
-            section_id: newSection.id,
-            questionnaire_id: questionnaireId,
-            question_text: q.question_text,
-            question_type: q.question_type,
-            options: q.options,
-            required: q.required,
-            order_index: index,
-            validation_rules: q.validation_rules,
-            help_text: q.help_text
-          }));
-
-          const { error: cqError } = await supabase
-            .from('questions')
-            .insert(newQuestions);
-
-          if (cqError) {
-            console.error('Create questions error:', cqError);
-          } else {
-            questionsAdded += newQuestions.length;
-          }
-        }
-      } else if (item.type === 'question') {
-        // Clone individual question
-        const { data: originalQuestion, error: qError } = await supabase
-          .from('questions')
-          .select('*')
-          .eq('id', item.questionId)
-          .single();
-
-        if (qError || !originalQuestion) {
-          console.error('Fetch question error:', qError);
-          continue;
-        }
-
-        // If we already have a mapped section for this question's section, use it
-        // Otherwise, create a new section for orphaned questions
-        let targetSectionId = sectionIdMap[item.sectionId];
-
-        if (!targetSectionId) {
-          // Get the original section info
-          const { data: originalSection, error: sError } = await supabase
-            .from('questionnaire_sections')
-            .select('*')
-            .eq('id', item.sectionId)
-            .single();
-
-          if (sError || !originalSection) {
-            console.error('Fetch section for question error:', sError);
-            continue;
-          }
-
-          // Create new section
-          const { data: newSection, error: nsError } = await supabase
-            .from('questionnaire_sections')
-            .insert([{
-              questionnaire_id: questionnaireId,
-              title: originalSection.title,
-              description: originalSection.description,
-              order_index: sectionsAdded
-            }])
-            .select()
-            .single();
-
-          if (nsError) {
-            console.error('Create section for question error:', nsError);
-            continue;
-          }
-
-          targetSectionId = newSection.id;
-          sectionIdMap[item.sectionId] = newSection.id;
+            order_index: targetSections.length,
+            questions: []
+          };
+          targetSections.push(targetSection);
+          sectionIdMap[item.sectionId] = targetSection;
           sectionsAdded++;
         }
 
-        // Create new question
-        const { error: cqError } = await supabase
-          .from('questions')
-          .insert([{
-            section_id: targetSectionId,
-            questionnaire_id: questionnaireId,
-            question_text: originalQuestion.question_text,
-            question_type: originalQuestion.question_type,
-            options: originalQuestion.options,
-            required: originalQuestion.required,
-            order_index: questionsAdded,
-            validation_rules: originalQuestion.validation_rules,
-            help_text: originalQuestion.help_text
-          }]);
+        // Clone question with new ID
+        const clonedQuestion = {
+          ...originalQuestion,
+          id: `question-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          order_index: targetSection.questions.length
+        };
 
-        if (cqError) {
-          console.error('Create question error:', cqError);
-        } else {
-          questionsAdded++;
-        }
+        targetSection.questions.push(clonedQuestion);
+        questionsAdded++;
       }
+    }
+
+    // Update target questionnaire with new sections
+    const { error: updateError } = await supabase
+      .from('questionnaires')
+      .update({
+        sections: targetSections,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', questionnaireId);
+
+    if (updateError) {
+      console.error('Update questionnaire error:', updateError);
+      return res.status(500).json({ error: 'Failed to update questionnaire' });
     }
 
     res.status(201).json({
@@ -1019,7 +713,7 @@ router.get('/:id/export/excel', authenticateToken, requireAdmin, async (req, res
     const { id } = req.params;
     const { language = 'en', format = 'xlsx' } = req.query;
 
-    // Get questionnaire with full details
+    // Get questionnaire with sections from JSONB
     const { data: questionnaire, error: qError } = await supabase
       .from('questionnaires')
       .select('*')
@@ -1030,35 +724,11 @@ router.get('/:id/export/excel', authenticateToken, requireAdmin, async (req, res
       return res.status(404).json({ error: 'Questionnaire not found' });
     }
 
-    // Get sections
-    const { data: sections, error: sError } = await supabase
-      .from('questionnaire_sections')
-      .select('*')
-      .eq('questionnaire_id', id)
-      .order('order_index', { ascending: true });
-
-    if (sError) {
-      console.error('Fetch sections error:', sError);
-      return res.status(500).json({ error: 'Failed to fetch sections' });
+    // Sections are already in questionnaire.sections (JSONB)
+    // Ensure sections is an array
+    if (!questionnaire.sections || !Array.isArray(questionnaire.sections)) {
+      questionnaire.sections = [];
     }
-
-    // Get questions
-    const { data: questions, error: qsError } = await supabase
-      .from('questions')
-      .select('*')
-      .eq('questionnaire_id', id)
-      .order('order_index', { ascending: true });
-
-    if (qsError) {
-      console.error('Fetch questions error:', qsError);
-      return res.status(500).json({ error: 'Failed to fetch questions' });
-    }
-
-    // Organize questions by section
-    const sectionsWithQuestions = sections.map(section => ({
-      ...section,
-      questions: questions.filter(q => q.section_id === section.id)
-    }));
 
     // Get responses
     const { data: responses, error: rError } = await supabase
@@ -1072,16 +742,10 @@ router.get('/:id/export/excel', authenticateToken, requireAdmin, async (req, res
       return res.status(500).json({ error: 'Failed to fetch responses' });
     }
 
-    // Build complete questionnaire object
-    const completeQuestionnaire = {
-      ...questionnaire,
-      sections: sectionsWithQuestions
-    };
-
     // Generate Excel workbook
     const excelService = new ExcelExportService();
     const workbook = await excelService.generateAdvancedExport(
-      completeQuestionnaire,
+      questionnaire,
       responses,
       { language }
     );
