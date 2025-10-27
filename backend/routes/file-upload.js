@@ -1306,13 +1306,34 @@ router.post('/convert', authenticateToken, requireAdmin, upload.single('file'), 
       ? allQuestions.reduce((sum, q) => sum + (q.metadata?.confidence || 0), 0) / allQuestions.length
       : 0;
 
-    // Create questionnaire
+    // Prepare sections with cleaned questions (remove metadata and question_number)
+    const cleanedSections = sections.map((section, index) => {
+      const cleanedQuestions = (section.questions || []).map(q => {
+        // Remove metadata and question_number - not needed in DB
+        const { metadata, question_number, ...questionWithoutMeta } = q;
+        return questionWithoutMeta;
+      });
+
+      return {
+        id: `section-${Date.now()}-${index}`,
+        title: section.title,
+        description: section.description,
+        order_index: section.order_index,
+        questions: cleanedQuestions.map((q, qIndex) => ({
+          ...q,
+          id: `question-${Date.now()}-${index}-${qIndex}`
+        }))
+      };
+    });
+
+    // Create questionnaire with sections as JSONB
     const { data: questionnaire, error: qError } = await supabase
       .from('questionnaires')
       .insert([{
         title,
         description: description || `Imported from ${req.file.originalname}`,
         status: 'draft',
+        sections: cleanedSections, // Store sections as JSONB
         created_by: req.user.id
       }])
       .select()
@@ -1323,73 +1344,10 @@ router.post('/convert', authenticateToken, requireAdmin, upload.single('file'), 
       return res.status(500).json({ error: 'Failed to create questionnaire' });
     }
 
-    // Create sections and questions
-    let totalQuestionsInserted = 0;
-    const insertErrors = [];
+    const totalQuestionsInserted = allQuestions.length;
+    console.log(`[DEBUG] Created questionnaire with ${cleanedSections.length} sections and ${totalQuestionsInserted} questions`);
 
-    for (const section of sections) {
-      const { data: createdSection, error: sError } = await supabase
-        .from('questionnaire_sections')
-        .insert([{
-          questionnaire_id: questionnaire.id,
-          title: section.title,
-          description: section.description,
-          order_index: section.order_index
-        }])
-        .select()
-        .single();
-
-      if (sError) {
-        console.error('Create section error:', sError);
-        insertErrors.push({ section: section.title.en, error: sError.message });
-        continue;
-      }
-
-      if (section.questions && section.questions.length > 0) {
-        const questionsData = section.questions.map(q => {
-          // Remove metadata and question_number before saving to DB
-          // question_number is not a DB field - order_index serves this purpose
-          const { metadata, question_number, ...questionWithoutMeta } = q;
-          return {
-            section_id: createdSection.id,
-            questionnaire_id: questionnaire.id,
-            ...questionWithoutMeta
-          };
-        });
-
-        console.log(`[DEBUG] Inserting ${questionsData.length} questions for section ${createdSection.id}`);
-        const { data: insertedQuestions, error: qsError } = await supabase
-          .from('questions')
-          .insert(questionsData)
-          .select();
-
-        if (qsError) {
-          console.error('Create questions error:', qsError);
-          console.error('Failed question data sample:', JSON.stringify(questionsData[0], null, 2));
-          insertErrors.push({
-            section: section.title.en,
-            error: qsError.message,
-            sampleQuestion: questionsData[0]
-          });
-        } else {
-          const inserted = insertedQuestions?.length || 0;
-          console.log(`[DEBUG] Successfully inserted ${inserted} questions`);
-          totalQuestionsInserted += inserted;
-        }
-      }
-    }
-
-    // Check if any questions were actually saved
-    if (totalQuestionsInserted === 0 && allQuestions.length > 0) {
-      console.error('[FILE UPLOAD] CRITICAL: Questions parsed but none saved!');
-      console.error('[FILE UPLOAD] Insert errors:', insertErrors);
-      return res.status(500).json({
-        error: 'Questions were parsed but failed to save to database',
-        parsed: allQuestions.length,
-        saved: 0,
-        errors: insertErrors
-      });
-    }
+    const insertErrors = []; // No errors with JSONB approach
 
     // Record upload with advanced analytics
     await supabase
