@@ -253,7 +253,25 @@ const QuestionnaireBuilder: React.FC = () => {
     try {
       setLoading(true);
       const data = await questionnaireAPI.getById(id!);
-      setQuestionnaire(data);
+
+      // Ensure data structure is correct - add defensive checks
+      const normalizedData = {
+        ...data,
+        sections: (data.sections || []).map((section: any, index: number) => ({
+          ...section,
+          title: section.title || { en: `Section ${index + 1}`, sq: `Seksioni ${index + 1}`, sr: `Секција ${index + 1}` },
+          description: section.description || { en: '', sq: '', sr: '' },
+          questions: (section.questions || []).map((q: any) => ({
+            ...q,
+            question_text: q.question_text || { en: '', sq: '', sr: '' },
+            help_text: q.help_text || { en: '', sq: '', sr: '' },
+            options: q.options || null,
+            validation_rules: q.validation_rules || {}
+          }))
+        }))
+      };
+
+      setQuestionnaire(normalizedData);
     } catch (err: any) {
       console.error('Error loading questionnaire:', err);
       setError('Failed to load questionnaire');
@@ -651,9 +669,9 @@ const QuestionnaireBuilder: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={question.question_text[currentLanguage]}
+                  value={question?.question_text?.[currentLanguage] || ''}
                   onChange={(e) => updateQuestion(sectionIndex, questionIndex, 'question_text', {
-                    ...question.question_text,
+                    ...(question?.question_text || { en: '', sq: '', sr: '' }),
                     [currentLanguage]: e.target.value
                   })}
                   placeholder={tr('enterQuestion') + ` (${currentLanguage.toUpperCase()})`}
@@ -670,9 +688,9 @@ const QuestionnaireBuilder: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    value={question.help_text[currentLanguage]}
+                    value={question?.help_text?.[currentLanguage] || ''}
                     onChange={(e) => updateQuestion(sectionIndex, questionIndex, 'help_text', {
-                      ...question.help_text,
+                      ...(question?.help_text || { en: '', sq: '', sr: '' }),
                       [currentLanguage]: e.target.value
                     })}
                     placeholder={tr('addHelperText')}
@@ -698,7 +716,7 @@ const QuestionnaireBuilder: React.FC = () => {
                           </span>
                           <input
                             type="text"
-                            value={option.label[currentLanguage]}
+                            value={option?.label?.[currentLanguage] || ''}
                             onChange={(e) => updateOption(sectionIndex, questionIndex, optIndex, currentLanguage, e.target.value)}
                             placeholder={`${tr('option')} ${optIndex + 1}`}
                             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
@@ -830,7 +848,23 @@ const QuestionnaireBuilder: React.FC = () => {
     );
   }
 
-  const currentSection = questionnaire.sections[activeSection];
+  // Ensure we have valid sections
+  if (!questionnaire.sections || questionnaire.sections.length === 0) {
+    questionnaire.sections = [{
+      id: `section-${Date.now()}`,
+      title: { en: 'Section 1', sq: 'Seksioni 1', sr: 'Секција 1' },
+      description: { en: '', sq: '', sr: '' },
+      order_index: 0,
+      questions: []
+    }];
+  }
+
+  // Ensure active section is valid
+  if (activeSection >= questionnaire.sections.length) {
+    setActiveSection(0);
+  }
+
+  const currentSection = questionnaire.sections[activeSection] || questionnaire.sections[0];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -989,7 +1023,7 @@ const QuestionnaireBuilder: React.FC = () => {
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
-                  {section.title[currentLanguage] || `Section ${index + 1}`}
+                  {(section?.title?.[currentLanguage]) || `Section ${index + 1}`}
                 </button>
               </div>
             ))}
@@ -1017,9 +1051,9 @@ const QuestionnaireBuilder: React.FC = () => {
               </label>
               <input
                 type="text"
-                value={currentSection.title[currentLanguage]}
+                value={currentSection?.title?.[currentLanguage] || ''}
                 onChange={(e) => updateSection(activeSection, 'title', {
-                  ...currentSection.title,
+                  ...(currentSection?.title || { en: '', sq: '', sr: '' }),
                   [currentLanguage]: e.target.value
                 })}
                 placeholder={tr('sectionTitle')}
@@ -1032,9 +1066,9 @@ const QuestionnaireBuilder: React.FC = () => {
                 {tr('sectionDescription')} ({currentLanguage.toUpperCase()})
               </label>
               <textarea
-                value={currentSection.description[currentLanguage]}
+                value={currentSection?.description?.[currentLanguage] || ''}
                 onChange={(e) => updateSection(activeSection, 'description', {
-                  ...currentSection.description,
+                  ...(currentSection?.description || { en: '', sq: '', sr: '' }),
                   [currentLanguage]: e.target.value
                 })}
                 placeholder={tr('sectionDescription')}
