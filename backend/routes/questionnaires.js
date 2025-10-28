@@ -554,8 +554,13 @@ router.post('/clone-sections', authenticateToken, requireAdmin, async (req, res)
         .single();
 
       if (qError) {
-        console.error('Create questionnaire error:', qError);
-        return res.status(500).json({ error: 'Failed to create questionnaire' });
+        console.error('[CLONE-SECTIONS] Create questionnaire error:', qError);
+        return res.status(500).json({
+          error: 'Failed to create questionnaire',
+          details: qError.message,
+          code: qError.code,
+          hint: qError.hint
+        });
       }
 
       questionnaireId = newQuestionnaire.id;
@@ -590,8 +595,13 @@ router.post('/clone-sections', authenticateToken, requireAdmin, async (req, res)
       .in('id', sourceQuestionnaireIds);
 
     if (sqError) {
-      console.error('Fetch source questionnaires error:', sqError);
-      return res.status(500).json({ error: 'Failed to fetch source questionnaires' });
+      console.error('[CLONE-SECTIONS] Fetch source questionnaires error:', sqError);
+      return res.status(500).json({
+        error: 'Failed to fetch source questionnaires',
+        details: sqError.message,
+        code: sqError.code,
+        hint: sqError.hint
+      });
     }
 
     // Create a map for quick lookup
@@ -687,8 +697,14 @@ router.post('/clone-sections', authenticateToken, requireAdmin, async (req, res)
       .eq('id', questionnaireId);
 
     if (updateError) {
-      console.error('Update questionnaire error:', updateError);
-      return res.status(500).json({ error: 'Failed to update questionnaire' });
+      console.error('[CLONE-SECTIONS] Update questionnaire error:', updateError);
+      console.error('[CLONE-SECTIONS] Sections being saved:', JSON.stringify(targetSections, null, 2).substring(0, 500));
+      return res.status(500).json({
+        error: 'Failed to update questionnaire',
+        details: updateError.message,
+        code: updateError.code,
+        hint: updateError.hint
+      });
     }
 
     res.status(201).json({
@@ -700,8 +716,12 @@ router.post('/clone-sections', authenticateToken, requireAdmin, async (req, res)
       isNewQuestionnaire
     });
   } catch (error) {
-    console.error('Clone sections error:', error);
-    res.status(500).json({ error: 'Failed to clone sections' });
+    console.error('[CLONE-SECTIONS] Unexpected error:', error);
+    res.status(500).json({
+      error: 'Failed to clone sections',
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
