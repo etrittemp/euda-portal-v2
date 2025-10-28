@@ -411,37 +411,60 @@ const DynamicQuestionnaire: React.FC = () => {
         );
 
       case 'radio':
+        // Radio now renders as checkboxes (multi-select) for backwards compatibility
+        // with existing questionnaires where "Multiple Choice" was mapped to 'radio'
+        const radioSelectedValues = Array.isArray(value) ? value : [];
         return (
           <div className="space-y-2">
             {question.options?.map((option, index) => {
-              const isSelected = value === option.value || (typeof value === 'object' && value?.value === option.value);
-              const customValue = typeof value === 'object' ? value?.customText || '' : '';
+              const isChecked = radioSelectedValues.some((v: any) =>
+                typeof v === 'string' ? v === option.value : v?.value === option.value
+              );
+              const existingItem = radioSelectedValues.find((v: any) =>
+                typeof v === 'string' ? v === option.value : v?.value === option.value
+              );
+              const customValue = typeof existingItem === 'object' ? existingItem?.customText || '' : '';
 
               return (
                 <div key={index} className="space-y-2">
                   <label className="flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
                     <input
-                      type="radio"
-                      name={question.id}
+                      type="checkbox"
                       value={option.value}
-                      checked={isSelected}
+                      checked={isChecked}
                       onChange={(e) => {
-                        if (option.allowsCustomInput) {
-                          handleResponseChange(question.id, { value: e.target.value, customText: '' }, questionText);
+                        let newValues;
+                        if (e.target.checked) {
+                          const newItem = option.allowsCustomInput
+                            ? { value: option.value, customText: '' }
+                            : option.value;
+                          newValues = [...radioSelectedValues, newItem];
                         } else {
-                          handleResponseChange(question.id, e.target.value, questionText);
+                          newValues = radioSelectedValues.filter((v: any) =>
+                            typeof v === 'string' ? v !== option.value : v?.value !== option.value
+                          );
                         }
+                        handleResponseChange(question.id, newValues, questionText);
                       }}
-                      className="w-4 h-4 text-purple-600 focus:ring-purple-500"
+                      className="w-4 h-4 text-purple-600 focus:ring-purple-500 rounded"
                     />
                     <span className="ml-3 text-gray-900">{getText(option.label)}</span>
                   </label>
-                  {option.allowsCustomInput && isSelected && (
+                  {option.allowsCustomInput && isChecked && (
                     <div className="ml-7 pl-4 border-l-2 border-purple-300">
                       <input
                         type="text"
                         value={customValue}
-                        onChange={(e) => handleResponseChange(question.id, { value: option.value, customText: e.target.value }, questionText)}
+                        onChange={(e) => {
+                          const newValues = radioSelectedValues.map((v: any) => {
+                            if (typeof v === 'string') {
+                              return v === option.value ? { value: option.value, customText: e.target.value } : v;
+                            } else {
+                              return v?.value === option.value ? { ...v, customText: e.target.value } : v;
+                            }
+                          });
+                          handleResponseChange(question.id, newValues, questionText);
+                        }}
                         placeholder={language === 'en' ? 'Please specify...' :
                                    language === 'sq' ? 'Ju lutem specifikoni...' :
                                    'Molimo navedite...'}

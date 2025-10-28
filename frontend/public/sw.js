@@ -1,7 +1,7 @@
 // Service Worker for PWA functionality
 // Provides offline support, caching, and background sync
 
-const CACHE_VERSION = 'v2.5.3';
+const CACHE_VERSION = 'v2.6.0';
 const CACHE_NAME = `euda-portal-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `runtime-${CACHE_VERSION}`;
 
