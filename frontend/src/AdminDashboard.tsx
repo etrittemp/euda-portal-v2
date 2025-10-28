@@ -58,6 +58,30 @@ const AdminDashboard = () => {
     return matchesSearch && matchesCountry && matchesStatus;
   });
 
+  // Helper function to format answer values - handles arrays, objects, and strings
+  const formatAnswerValue = (ans: any): string => {
+    if (!ans) return '';
+
+    // Handle array of values (multiple selections)
+    if (Array.isArray(ans)) {
+      return ans.map((item: any) => {
+        if (typeof item === 'object' && item !== null) {
+          // Object with value and customText
+          return item.customText ? `${item.value} (${item.customText})` : item.value;
+        }
+        return item;
+      }).join(', ');
+    }
+
+    // Handle single object (single selection with custom input)
+    if (typeof ans === 'object' && ans !== null) {
+      return ans.customText ? `${ans.value} (${ans.customText})` : ans.value;
+    }
+
+    // Handle string or other primitive
+    return String(ans);
+  };
+
   const downloadResponseCSV = (response) => {
     // Create comprehensive CSV with all questions and answers
     const rows = [];
@@ -80,12 +104,12 @@ const AdminDashboard = () => {
       let question, answer;
 
       // Handle both old format (string) and new format (object with question/answer)
-      if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
+      if (typeof data === 'object' && data !== null && !Array.isArray(data) && 'question' in data) {
         question = (data.question || key || '').toString();
-        answer = (data.answer || '').toString();
+        answer = formatAnswerValue(data.answer);
       } else {
         question = key.toString();
-        answer = (data || '').toString();
+        answer = formatAnswerValue(data);
       }
 
       // Preserve the full answer text including line breaks
@@ -141,12 +165,12 @@ const AdminDashboard = () => {
         let question, answer;
 
         // Handle both old format (string) and new format (object with question/answer)
-        if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
+        if (typeof data === 'object' && data !== null && !Array.isArray(data) && 'question' in data) {
           question = (data.question || key || '').toString();
-          answer = (data.answer || '').toString();
+          answer = formatAnswerValue(data.answer);
         } else {
           question = key.toString();
-          answer = (data || '').toString();
+          answer = formatAnswerValue(data);
         }
 
         rows.push([question, answer]);
@@ -323,10 +347,29 @@ const AdminDashboard = () => {
                 answer = data || '';
               }
 
-              // Debug log
-              if (index === 0) {
-                console.log('Sample data structure:', { key, data, question, answer });
-              }
+              // Format answer for display - handle arrays, objects, and strings
+              const formatAnswer = (ans: any): string => {
+                if (!ans) return 'No answer provided';
+
+                // Handle array of values (multiple selections)
+                if (Array.isArray(ans)) {
+                  return ans.map((item: any) => {
+                    if (typeof item === 'object' && item !== null) {
+                      // Object with value and customText
+                      return item.customText ? `${item.value} (${item.customText})` : item.value;
+                    }
+                    return item;
+                  }).join(', ');
+                }
+
+                // Handle single object (single selection with custom input)
+                if (typeof ans === 'object' && ans !== null) {
+                  return ans.customText ? `${ans.value} (${ans.customText})` : ans.value;
+                }
+
+                // Handle string or other primitive
+                return String(ans);
+              };
 
               return (
                 <div key={key} className="border-l-4 border-purple-200 pl-4 py-2">
@@ -339,7 +382,7 @@ const AdminDashboard = () => {
                         {question}
                       </p>
                       <div className="text-sm text-gray-900 bg-gray-50 p-3 rounded border border-gray-200 whitespace-pre-wrap break-words overflow-wrap-anywhere">
-                        {answer || 'No answer provided'}
+                        {formatAnswer(answer)}
                       </div>
                     </div>
                   </div>
