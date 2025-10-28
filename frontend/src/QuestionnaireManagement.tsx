@@ -20,7 +20,8 @@ import {
   AlertCircle,
   Share2,
   FileSpreadsheet,
-  Layers
+  Layers,
+  LogOut
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { questionnaireAPI } from './api';
@@ -30,6 +31,7 @@ import ShareModal from './components/ShareModal';
 import ExcelExportDialog from './components/ExcelExportDialog';
 import SectionLibraryModal from './components/SectionLibraryModal';
 import { showToast } from './utils/toast';
+import { useAuth } from './AuthContext';
 
 interface Questionnaire {
   id: string;
@@ -46,6 +48,7 @@ interface Questionnaire {
 const QuestionnaireManagement: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { logout, user } = useAuth();
   const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([]);
   const [filteredQuestionnaires, setFilteredQuestionnaires] = useState<Questionnaire[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -225,6 +228,11 @@ const QuestionnaireManagement: React.FC = () => {
     setExcelExportModalOpen(true);
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   const getStatusBadge = (status: string) => {
     const styles = {
       draft: 'bg-gray-100 text-gray-800',
@@ -386,10 +394,25 @@ const QuestionnaireManagement: React.FC = () => {
               <h1 className="text-3xl font-bold mb-2">{t('manageQuestionnaires')}</h1>
               <p className="text-purple-100">{t('createManageMonitor')}</p>
             </div>
-            <LanguageSelector
-              variant="compact"
-              className="bg-white bg-opacity-20 text-white border-white border-opacity-30"
-            />
+            <div className="flex items-center gap-3">
+              {user && (
+                <div className="text-sm text-purple-100">
+                  {user.name}
+                </div>
+              )}
+              <LanguageSelector
+                variant="compact"
+                className="bg-white bg-opacity-20 text-white border-white border-opacity-30"
+              />
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg transition-colors border border-white border-opacity-30"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="text-sm font-medium">Logout</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
