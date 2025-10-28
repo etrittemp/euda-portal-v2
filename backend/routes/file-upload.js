@@ -289,8 +289,14 @@ function classifyQuestionType(questionText, nextLines, strongTexts, htmlContext 
   if (features.hasAll) {
     scores.checkbox += 90;
   }
+  // STRONG detection for explicit "multiple choice" / "multi-choice" phrases
+  if (/multiple\s*[-\s]*choice|multi\s*[-\s]*choice|multiple\s*select|multi\s*select/i.test(questionText)) {
+    scores.checkbox += 250; // VERY strong boost for explicit "multiple choice" phrase
+    scores.radio = Math.max(0, scores.radio - 100); // Heavily reduce radio confidence
+    console.log('[CHECKBOX-STRONG] Detected "multiple choice" phrase - forcing multi-select');
+  }
   // EN/SQ/SR patterns for "select all" / "multiple"
-  if (/select all|check all|mark all|choose all|multiple|up to \d+|zgjidhni të gjitha|zgjidhni te gjitha|të gjitha që|te gjitha qe|shumëfish|shumefish|izaberite sve|odaberite sve|višestruki|visestruki/i.test(questionText)) {
+  if (/select all|check all|mark all|choose all|up to \d+|zgjidhni të gjitha|zgjidhni te gjitha|të gjitha që|te gjitha qe|shumëfish|shumefish|izaberite sve|odaberite sve|višestruki|visestruki/i.test(questionText)) {
     scores.checkbox += 80;
   }
   // Albanian/Serbian "choose all that apply" in parentheses
