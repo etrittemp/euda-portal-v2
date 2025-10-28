@@ -586,7 +586,7 @@ router.post('/clone-sections', authenticateToken, requireAdmin, async (req, res)
     const sectionIdMap = {}; // Map old section IDs to new cloned section data
 
     // Collect all unique source questionnaire IDs
-    const sourceQuestionnaireIds = [...new Set(items.map(item => item.questionnaireId))];
+    const sourceQuestionnaireIds = [...new Set(items.map(item => item.sourceQuestionnaireId))];
 
     // Fetch all source questionnaires at once
     const { data: sourceQuestionnaires, error: sqError } = await supabase
@@ -612,7 +612,7 @@ router.post('/clone-sections', authenticateToken, requireAdmin, async (req, res)
 
     // Process each item
     for (const item of items) {
-      const sourceSections = questionnaireMap[item.questionnaireId] || [];
+      const sourceSections = questionnaireMap[item.sourceQuestionnaireId] || [];
 
       if (item.type === 'section') {
         // Find and clone entire section with all questions
