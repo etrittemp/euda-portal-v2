@@ -338,10 +338,10 @@ class SemanticAnalyzer {
       file: 0
     };
 
-    // Multiple choice indicators
+    // Multiple choice indicators - favor checkbox (multi-select) over radio (single-select)
     if (hint === 'multiple_choice') {
-      typeScores.radio += 50;
-      typeScores.checkbox += 30;
+      typeScores.checkbox += 50; // Multiple choice should allow multiple selections
+      typeScores.radio += 30;     // Lower score for single selection
     }
 
     // Keyword-based scoring
@@ -383,9 +383,9 @@ class SemanticAnalyzer {
       }
     }
 
-    // Default to radio for multiple choice, text otherwise
+    // Default to checkbox for multiple choice (multi-select), text otherwise
     if (maxScore < 20) {
-      return hint === 'multiple_choice' ? 'radio' : 'text';
+      return hint === 'multiple_choice' ? 'checkbox' : 'text';
     }
 
     return bestType;
