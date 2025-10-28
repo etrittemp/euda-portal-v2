@@ -442,8 +442,8 @@ const DynamicQuestionnaire: React.FC = () => {
                         type="text"
                         value={customValue}
                         onChange={(e) => handleResponseChange(question.id, { value: option.value, customText: e.target.value }, questionText)}
-                        placeholder={currentLanguage === 'en' ? 'Please specify...' :
-                                   currentLanguage === 'sq' ? 'Ju lutem specifikoni...' :
+                        placeholder={language === 'en' ? 'Please specify...' :
+                                   language === 'sq' ? 'Ju lutem specifikoni...' :
                                    'Molimo navedite...'}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                       />
@@ -508,8 +508,8 @@ const DynamicQuestionnaire: React.FC = () => {
                           });
                           handleResponseChange(question.id, newValues, questionText);
                         }}
-                        placeholder={currentLanguage === 'en' ? 'Please specify...' :
-                                   currentLanguage === 'sq' ? 'Ju lutem specifikoni...' :
+                        placeholder={language === 'en' ? 'Please specify...' :
+                                   language === 'sq' ? 'Ju lutem specifikoni...' :
                                    'Molimo navedite...'}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                       />

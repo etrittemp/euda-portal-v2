@@ -11,78 +11,77 @@ const supabase = createClient(
 async function checkSchema() {
   console.log('=== CHECKING DATABASE SCHEMA ===\n');
 
-  // Check questionnaires table structure
-  const { data: tables, error: tablesError } = await supabase
+  // Test 1: Try to select sections column
+  console.log('Test 1: Query sections column...');
+  const { data: selectData, error: selectError } = await supabase
     .from('questionnaires')
-    .select('*')
-    .limit(0);
-
-  if (tablesError) {
-    console.error('Error checking schema:', tablesError);
-  }
-
-  // Try to get one record to see the structure
-  const { data: sample, error: sampleError } = await supabase
-    .from('questionnaires')
-    .select('*')
+    .select('id, title, sections')
     .limit(1);
 
-  console.log('Questionnaires table sample:');
-  if (sample && sample.length > 0) {
-    console.log('Columns:', Object.keys(sample[0]));
-    console.log('\nSample data structure:');
-    console.log(JSON.stringify(sample[0], null, 2));
+  if (selectError) {
+    console.error('❌ SELECT with sections column FAILED:');
+    console.error('Message:', selectError.message);
+    console.error('Code:', selectError.code);
+    console.error('Details:', selectError.details);
   } else {
-    console.log('No data in questionnaires table');
+    console.log('✅ SELECT with sections column SUCCESS');
+    console.log('Sample data:', selectData);
   }
 
-  console.log('\n=== CHECKING RESPONSES TABLE ===\n');
-
-  const { data: responses, error: respError } = await supabase
-    .from('questionnaire_responses')
-    .select('*')
-    .limit(1);
-
-  if (responses && responses.length > 0) {
-    console.log('Responses table columns:', Object.keys(responses[0]));
-    console.log('\nSample response:');
-    console.log(JSON.stringify(responses[0], null, 2));
-  } else {
-    console.log('No responses in database yet');
-  }
-
-  console.log('\n=== TESTING AUTOSAVE ENDPOINT LOGIC ===\n');
-
-  // Test what happens with the autosave structure
+  // Test 2: Try to insert with sections
+  console.log('\nTest 2: Try inserting with sections column...');
   const testData = {
-    title: 'Test Questionnaire',
-    description: 'Test description',
-    sections: [
-      {
-        id: 'section-123',
-        title: { en: 'Section 1', sq: 'Seksioni 1', sr: 'Секција 1' },
-        description: { en: '', sq: '', sr: '' },
-        order_index: 0,
-        questions: [
-          {
-            id: 'question-456',
-            question_text: { en: 'Test question?', sq: 'Pyetje test?', sr: 'Тестно питање?' },
-            question_type: 'text',
-            options: null,
-            required: false,
-            order_index: 0,
-            validation_rules: {},
-            help_text: { en: '', sq: '', sr: '' }
-          }
-        ]
-      }
-    ]
+    title: 'Schema Test',
+    description: 'Testing sections column',
+    status: 'draft',
+    sections: [{
+      id: 'test-section',
+      title: 'Test',
+      description: '',
+      order_index: 0,
+      questions: []
+    }],
+    created_by: '00000000-0000-0000-0000-000000000000'
   };
 
-  console.log('Test data structure (what autosave will send):');
-  console.log(JSON.stringify(testData, null, 2));
+  const { data: insertData, error: insertError } = await supabase
+    .from('questionnaires')
+    .insert([testData])
+    .select()
+    .single();
 
-  console.log('\n✅ Schema check complete');
+  if (insertError) {
+    console.error('❌ INSERT with sections column FAILED:');
+    console.error('Message:', insertError.message);
+    console.error('Code:', insertError.code);
+    console.error('Details:', insertError.details);
+    console.error('Hint:', insertError.hint);
+    console.error('Full error:', JSON.stringify(insertError, null, 2));
+  } else {
+    console.log('✅ INSERT with sections column SUCCESS');
+    console.log('Created ID:', insertData.id);
+    console.log('Sections stored correctly?', Array.isArray(insertData.sections));
+
+    // Clean up
+    await supabase.from('questionnaires').delete().eq('id', insertData.id);
+    console.log('Test questionnaire deleted');
+  }
+
+  console.log('\n=== DIAGNOSIS ===');
+  if (selectError || insertError) {
+    console.log('❌ The sections column is NOT accessible via Supabase API');
+    console.log('\nPossible causes:');
+    console.log('1. Column was not actually created in the database');
+    console.log('2. Schema cache is stale (need to reload)');
+    console.log('3. RLS policies are blocking access');
+    console.log('\nRECOMMENDED ACTION:');
+    console.log('Run the SQL migration manually in Supabase SQL Editor:');
+    console.log('ALTER TABLE questionnaires ADD COLUMN IF NOT EXISTS sections JSONB DEFAULT \'[]\'::jsonb;');
+    console.log('Then reload schema: Dashboard → API → Reload Schema');
+  } else {
+    console.log('✅ The sections column is working correctly!');
+    console.log('The production system should be able to use it.');
+  }
 }
 
 checkSchema().catch(console.error);

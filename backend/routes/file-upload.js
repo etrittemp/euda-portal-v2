@@ -336,12 +336,12 @@ function classifyQuestionType(questionText, nextLines, strongTexts, htmlContext 
     scores.checkbox = Math.max(0, scores.checkbox - 50); // Reduce checkbox confidence
   }
 
-  // ===== RADIO/MULTIPLE CHOICE DETECTION - Any question with options =====
-  // Detect common option patterns and boost radio (multiple choice)
-  const hasOptions = nextLines.some(l => /^[\(\[\*\-•●]\s*[\)\]]?\s*.+/.test(l.trim()));
-  if (hasOptions) {
-    scores.radio += 150; // Strong preference for radio when options are present
-    console.log('[DETECTION] Found options - defaulting to multiple choice (radio)');
+  // ===== RADIO/SINGLE CHOICE DETECTION - Parentheses options only =====
+  // Detect parentheses-based options (radio buttons) - EXCLUDE brackets (checkboxes)
+  const hasParenthesesOptions = nextLines.some(l => /^\(\s*[\)\]]?\s*.+/.test(l.trim()) && !l.trim().startsWith('['));
+  if (hasParenthesesOptions && !hasBrackets) {
+    scores.radio += 150; // Strong preference for radio when parentheses options are present
+    console.log('[DETECTION] Found parentheses options - defaulting to single choice (radio)');
   }
 
   // ===== SELECT DROPDOWN DETECTION =====
@@ -418,13 +418,22 @@ function classifyQuestionType(questionText, nextLines, strongTexts, htmlContext 
     if (scores.radio > 0) scores.radio += 100;
     if (scores.checkbox > 0) scores.checkbox += 50;
 
-    // If we have 1+ options, it's definitely a selection type - default to radio (multiple choice)
+    // If we have 1+ options, it's definitely a selection type
+    // Boost whichever selection type is already winning (checkbox or radio)
     if (context.optionCount >= 1) {
       scores.textarea = 0; // Zero out textarea completely
       scores.text = 0; // Zero out text completely
-      scores.radio += 200; // MASSIVE boost for radio when options present
 
-      console.log('[RADIO-OVERRIDE] Found ' + context.optionCount + ' option(s) - forcing multiple choice (radio)');
+      // Only boost radio if checkbox isn't already significantly higher
+      if (scores.checkbox > scores.radio + 50) {
+        // Checkbox is clearly winning - boost checkbox instead
+        scores.checkbox += 200;
+        console.log('[CHECKBOX-OVERRIDE] Found ' + context.optionCount + ' option(s) with checkbox indicators - forcing multi-select (checkbox)');
+      } else {
+        // Default to radio for single choice
+        scores.radio += 200;
+        console.log('[RADIO-OVERRIDE] Found ' + context.optionCount + ' option(s) - forcing single choice (radio)');
+      }
     }
   }
 

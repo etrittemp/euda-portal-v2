@@ -1,52 +1,39 @@
 import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-const supabaseUrl = 'https://gzzgsyeqpnworczllraa.supabase.co';
-const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6emdzeWVxcG53b3JjemxscmFhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTkwMDczMywiZXhwIjoyMDc1NDc2NzMzfQ.EBn8ZlopUc5hQrMO1W5f8JXu-BxMDulkl42dgP6R2_o';
+dotenv.config();
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
 
 async function runMigration() {
   try {
-    console.log('🔄 Adding password column to questionnaires table...');
+    console.log('Running migration to add sections column...\n');
 
-    // Run a simple query to add the password column
-    const { error } = await supabase.rpc('exec_sql', {
-      sql: 'ALTER TABLE questionnaires ADD COLUMN IF NOT EXISTS password TEXT NULL;'
-    });
+    const migrationSQL = `
+ALTER TABLE questionnaires
+ADD COLUMN IF NOT EXISTS sections JSONB DEFAULT '[]'::jsonb;
+`;
 
-    if (error) {
-      console.log('⚠️  RPC method not available. Running alternative approach...');
+    console.log('SQL to execute:');
+    console.log(migrationSQL);
+    console.log('\n⚠️  Note: Supabase JS client cannot execute ALTER TABLE directly.');
+    console.log('\n📋 Please run this SQL manually in Supabase Dashboard:');
+    console.log('1. Go to: https://supabase.com/dashboard → Your Project → SQL Editor');
+    console.log('2. Paste the SQL above');
+    console.log('3. Click RUN');
+    console.log('\nOr run via psql if you have direct database access.\n');
 
-      // Alternative: Check if column exists by trying to select it
-      const { data, error: checkError } = await supabase
-        .from('questionnaires')
-        .select('id, password')
-        .limit(1);
-
-      if (checkError && checkError.message.includes('column "password" does not exist')) {
-        console.log('❌ Password column does not exist yet.');
-        console.log('');
-        console.log('📋 Please run this SQL manually in Supabase SQL Editor:');
-        console.log('   https://supabase.com/dashboard/project/gzzgsyeqpnworczllraa/sql');
-        console.log('');
-        console.log('   ALTER TABLE questionnaires ADD COLUMN IF NOT EXISTS password TEXT NULL;');
-        console.log('');
-        return;
-      } else if (!checkError) {
-        console.log('✅ Password column already exists or was successfully added!');
-      } else {
-        console.log('⚠️  Unexpected error:', checkError.message);
-      }
-    } else {
-      console.log('✅ Migration completed successfully!');
-    }
-  } catch (error) {
-    console.error('❌ Error:', error.message);
-    console.log('');
-    console.log('📋 Please run this SQL manually in Supabase SQL Editor:');
-    console.log('   https://supabase.com/dashboard/project/gzzgsyeqpnworczllraa/sql');
-    console.log('');
-    console.log('   ALTER TABLE questionnaires ADD COLUMN IF NOT EXISTS password TEXT NULL;');
+  } catch (err) {
+    console.error('Error:', err);
   }
 }
 
